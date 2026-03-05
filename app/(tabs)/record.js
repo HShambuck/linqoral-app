@@ -1,9 +1,9 @@
 // app/(tabs)/record.js
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '../../src/context/UserContext';
 import { useDrafts } from '../../src/context/DraftContext';
 import VoiceRecorder from '../../src/components/VoiceRecorder';
@@ -17,8 +17,20 @@ export default function RecordScreen() {
 
   const [selectedTone, setSelectedTone] = useState('Professional');
   const [phase, setPhase] = useState('idle');
+  const [recorderKey, setRecorderKey] = useState(0);
+  const voiceRecorderRef = useRef(null); // ← ref to call setDone/setError on VoiceRecorder
 
   const styles = createStyles(theme, isDarkMode, insets);
+
+  // Reset everything when navigating away from this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        setPhase('idle');
+        setRecorderKey(k => k + 1); // forces VoiceRecorder to fully remount = clean slate
+      };
+    }, [])
+  );
 
   const handleBack = () => {
     if (phase === 'recording') {
@@ -35,22 +47,28 @@ export default function RecordScreen() {
     setPhase('processing');
     const result = await processVoiceRecording(uri, selectedTone);
     if (result.success) {
-      setPhase('done');
+      // Tell VoiceRecorder to instantly switch to DONE state — shows Post ready + Review Post button
+      voiceRecorderRef.current?.setDone();
     } else {
-      Alert.alert('Processing Failed', result.error || 'Please try again.', [
-        { text: 'OK', onPress: () => setPhase('idle') },
-      ]);
+      // Tell VoiceRecorder to show error state with the message
+      voiceRecorderRef.current?.setError(result.error || 'Processing failed');
+      setPhase('idle');
     }
   };
 
   const handleReviewPost = () => {
     const id = currentDraft?.id || currentDraft?._id;
-    if (id) router.push(`/editor/${id}`);
+    if (id) {
+      router.push(`/editor/${id}`);
+    } else {
+      Alert.alert('Error', 'Could not find draft. Please try again.');
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.container}>
+
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
@@ -64,7 +82,7 @@ export default function RecordScreen() {
           </View>
         </View>
 
-        {/* Tone Selector */}
+        {/* Tone Selector — only visible when idle or recording */}
         {(phase === 'idle' || phase === 'recording') && (
           <View style={styles.toneSection}>
             <ToneSelector selectedTone={selectedTone} onSelectTone={setSelectedTone} />
@@ -74,8 +92,11 @@ export default function RecordScreen() {
         {/* Recorder */}
         <View style={styles.recorderWrap}>
           <VoiceRecorder
+            key={recorderKey}
+            ref={voiceRecorderRef}
             onRecordingComplete={handleRecordingComplete}
             onProcessingStart={() => setPhase('processing')}
+            onReviewPost={handleReviewPost}
             onError={(err) => {
               Alert.alert('Recording Error', err.message || 'An error occurred.');
               setPhase('idle');
@@ -84,18 +105,6 @@ export default function RecordScreen() {
           />
         </View>
 
-        {/* Done Actions */}
-        {phase === 'done' && (
-          <View style={[styles.actions, { paddingBottom: insets.bottom + 16 }]}>
-            <TouchableOpacity onPress={handleReviewPost} style={styles.reviewBtn} activeOpacity={0.85}>
-              <Text style={styles.reviewBtnText}>Review Post</Text>
-              <Text style={styles.reviewBtnArrow}>›</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setPhase('idle')} style={styles.againBtn} activeOpacity={0.7}>
-              <Text style={styles.againBtnText}>Record Again</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
     </SafeAreaView>
   );
@@ -134,27 +143,4 @@ const createStyles = (theme, isDarkMode, insets) => StyleSheet.create({
 
   toneSection: { marginBottom: 20 },
   recorderWrap: { flex: 1 },
-
-  actions: {
-    gap: 10,
-    paddingTop: 16,
-  },
-  reviewBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 17,
-    borderRadius: 16,
-    backgroundColor: theme.primary,
-    shadowColor: theme.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: isDarkMode ? 0.4 : 0.2,
-    shadowRadius: 16,
-    elevation: 8,
-    gap: 6,
-  },
-  reviewBtnText: { fontSize: 16, fontWeight: '700', color: '#fff', letterSpacing: -0.2 },
-  reviewBtnArrow: { fontSize: 20, color: 'rgba(255,255,255,0.8)', fontWeight: '600' },
-  againBtn: { padding: 14, alignItems: 'center' },
-  againBtnText: { fontSize: 14, color: theme.textMuted },
 });

@@ -9,8 +9,8 @@ import {
 } from "react";
 import aiService from "../services/aiService";
 import draftService from "../services/draftService";
-import { useAuth } from "./AuthContext";
 import publishService from "../services/publishService";
+import { useAuth } from "./AuthContext";
 
 /**
  * Draft state structure
@@ -25,9 +25,9 @@ const initialState = {
     publishedPosts: 0,
   },
   isLoading: false,
-  isProcessing: false, // For AI processing
+  isProcessing: false,
   error: null,
-  filter: "all", // 'all' | 'draft' | 'scheduled' | 'published'
+  filter: "all",
 };
 
 /**
@@ -68,11 +68,7 @@ const DRAFT_ACTIONS = {
 const draftReducer = (state, action) => {
   switch (action.type) {
     case DRAFT_ACTIONS.FETCH_DRAFTS_START:
-      return {
-        ...state,
-        isLoading: true,
-        error: null,
-      };
+      return { ...state, isLoading: true, error: null };
 
     case DRAFT_ACTIONS.FETCH_DRAFTS_SUCCESS:
       return {
@@ -83,30 +79,16 @@ const draftReducer = (state, action) => {
       };
 
     case DRAFT_ACTIONS.FETCH_DRAFTS_FAIL:
-      return {
-        ...state,
-        isLoading: false,
-        error: action.payload.error,
-      };
+      return { ...state, isLoading: false, error: action.payload.error };
 
     case DRAFT_ACTIONS.SET_CURRENT_DRAFT:
-      return {
-        ...state,
-        currentDraft: action.payload.draft,
-      };
+      return { ...state, currentDraft: action.payload.draft };
 
     case DRAFT_ACTIONS.CLEAR_CURRENT_DRAFT:
-      return {
-        ...state,
-        currentDraft: null,
-      };
+      return { ...state, currentDraft: null };
 
     case DRAFT_ACTIONS.CREATE_DRAFT_START:
-      return {
-        ...state,
-        isLoading: true,
-        error: null,
-      };
+      return { ...state, isLoading: true, error: null };
 
     case DRAFT_ACTIONS.CREATE_DRAFT_SUCCESS:
       return {
@@ -114,19 +96,12 @@ const draftReducer = (state, action) => {
         drafts: [action.payload.draft, ...state.drafts],
         currentDraft: action.payload.draft,
         recentDraft: action.payload.draft,
-        stats: {
-          ...state.stats,
-          totalDrafts: state.stats.totalDrafts + 1,
-        },
+        stats: { ...state.stats, totalDrafts: state.stats.totalDrafts + 1 },
         isLoading: false,
       };
 
     case DRAFT_ACTIONS.CREATE_DRAFT_FAIL:
-      return {
-        ...state,
-        isLoading: false,
-        error: action.payload.error,
-      };
+      return { ...state, isLoading: false, error: action.payload.error };
 
     case DRAFT_ACTIONS.UPDATE_DRAFT_SUCCESS:
       return {
@@ -155,11 +130,7 @@ const draftReducer = (state, action) => {
       };
 
     case DRAFT_ACTIONS.PROCESS_VOICE_START:
-      return {
-        ...state,
-        isProcessing: true,
-        error: null,
-      };
+      return { ...state, isProcessing: true, error: null };
 
     case DRAFT_ACTIONS.PROCESS_VOICE_SUCCESS:
       return {
@@ -169,35 +140,19 @@ const draftReducer = (state, action) => {
       };
 
     case DRAFT_ACTIONS.PROCESS_VOICE_FAIL:
-      return {
-        ...state,
-        isProcessing: false,
-        error: action.payload.error,
-      };
+      return { ...state, isProcessing: false, error: action.payload.error };
 
     case DRAFT_ACTIONS.SET_RECENT_DRAFT:
-      return {
-        ...state,
-        recentDraft: action.payload.draft,
-      };
+      return { ...state, recentDraft: action.payload.draft };
 
     case DRAFT_ACTIONS.SET_STATS:
-      return {
-        ...state,
-        stats: action.payload.stats,
-      };
+      return { ...state, stats: action.payload.stats };
 
     case DRAFT_ACTIONS.SET_FILTER:
-      return {
-        ...state,
-        filter: action.payload.filter,
-      };
+      return { ...state, filter: action.payload.filter };
 
     case DRAFT_ACTIONS.CLEAR_ERROR:
-      return {
-        ...state,
-        error: null,
-      };
+      return { ...state, error: null };
 
     case DRAFT_ACTIONS.UPLOAD_MEDIA_START:
       return { ...state, isProcessing: true };
@@ -228,24 +183,19 @@ export const DraftProvider = ({ children }) => {
    */
   const fetchDrafts = useCallback(async (filter = null) => {
     dispatch({ type: DRAFT_ACTIONS.FETCH_DRAFTS_START });
-
     try {
       const status = filter === "all" ? null : filter;
       const drafts = await draftService.getDrafts({ status });
-
       dispatch({
         type: DRAFT_ACTIONS.FETCH_DRAFTS_SUCCESS,
         payload: { drafts },
       });
-
       return drafts;
     } catch (error) {
       dispatch({
         type: DRAFT_ACTIONS.FETCH_DRAFTS_FAIL,
         payload: { error: error.message },
       });
-
-      // Try to load cached drafts
       const cached = await draftService.getCachedDrafts();
       if (cached.length > 0) {
         dispatch({
@@ -253,7 +203,6 @@ export const DraftProvider = ({ children }) => {
           payload: { drafts: cached },
         });
       }
-
       return [];
     }
   }, []);
@@ -265,14 +214,9 @@ export const DraftProvider = ({ children }) => {
     if (isAuthenticated) {
       const loadInitialData = async () => {
         try {
-          // Fetch stats
           const stats = await draftService.getStats();
-          dispatch({
-            type: DRAFT_ACTIONS.SET_STATS,
-            payload: { stats },
-          });
+          dispatch({ type: DRAFT_ACTIONS.SET_STATS, payload: { stats } });
 
-          // Fetch recent draft
           const recentDraft = await draftService.getRecentDraft();
           if (recentDraft) {
             dispatch({
@@ -284,7 +228,6 @@ export const DraftProvider = ({ children }) => {
           console.warn("Error loading initial draft data:", error);
         }
       };
-
       loadInitialData();
     }
   }, [isAuthenticated]);
@@ -295,12 +238,8 @@ export const DraftProvider = ({ children }) => {
   const processVoiceRecording = useCallback(
     async (audioUri, tone = "Professional") => {
       dispatch({ type: DRAFT_ACTIONS.PROCESS_VOICE_START });
-
       try {
-        // Call AI service to process voice
         const result = await aiService.processVoicePost(audioUri, { tone });
-
-        // Create draft with processed content
         const draft = await draftService.createDraft({
           rawTranscript: result.transcript,
           aiRefinedText: result.refinedText,
@@ -308,18 +247,14 @@ export const DraftProvider = ({ children }) => {
           audioUri,
           audioDurationMs: result.durationMs,
         });
-
         dispatch({
           type: DRAFT_ACTIONS.PROCESS_VOICE_SUCCESS,
           payload: { draft },
         });
-
-        // Also add to drafts list
         dispatch({
           type: DRAFT_ACTIONS.CREATE_DRAFT_SUCCESS,
           payload: { draft },
         });
-
         return { success: true, draft };
       } catch (error) {
         dispatch({
@@ -340,12 +275,10 @@ export const DraftProvider = ({ children }) => {
       const updatedDraft = await draftService.updateDraft(draftId, {
         userEditedText: text,
       });
-
       dispatch({
         type: DRAFT_ACTIONS.UPDATE_DRAFT_SUCCESS,
         payload: { draft: updatedDraft },
       });
-
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -360,18 +293,13 @@ export const DraftProvider = ({ children }) => {
       try {
         const draft =
           state.drafts.find((d) => d.id === draftId) || state.currentDraft;
+        if (!draft) throw new Error("Draft not found");
 
-        if (!draft) {
-          throw new Error("Draft not found");
-        }
-
-        // Re-refine with new tone
         const { refinedText } = await aiService.changeTone(
           draft.userEditedText || draft.aiRefinedText,
           newTone,
         );
 
-        // Update draft
         const updatedDraft = await draftService.updateDraft(draftId, {
           tone: newTone,
           aiRefinedText: refinedText,
@@ -382,7 +310,6 @@ export const DraftProvider = ({ children }) => {
           type: DRAFT_ACTIONS.UPDATE_DRAFT_SUCCESS,
           payload: { draft: updatedDraft },
         });
-
         return { success: true, refinedText };
       } catch (error) {
         return { success: false, error: error.message };
@@ -397,12 +324,10 @@ export const DraftProvider = ({ children }) => {
   const saveDraft = useCallback(async (draftId, updates) => {
     try {
       const updatedDraft = await draftService.updateDraft(draftId, updates);
-
       dispatch({
         type: DRAFT_ACTIONS.UPDATE_DRAFT_SUCCESS,
         payload: { draft: updatedDraft },
       });
-
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -419,13 +344,10 @@ export const DraftProvider = ({ children }) => {
           draftId,
           scheduledAt,
         );
-
         dispatch({
           type: DRAFT_ACTIONS.UPDATE_DRAFT_SUCCESS,
           payload: { draft: updatedDraft },
         });
-
-        // Update stats
         dispatch({
           type: DRAFT_ACTIONS.SET_STATS,
           payload: {
@@ -435,7 +357,6 @@ export const DraftProvider = ({ children }) => {
             },
           },
         });
-
         return { success: true };
       } catch (error) {
         return { success: false, error: error.message };
@@ -450,12 +371,10 @@ export const DraftProvider = ({ children }) => {
   const deleteDraft = useCallback(async (draftId) => {
     try {
       await draftService.deleteDraft(draftId);
-
       dispatch({
         type: DRAFT_ACTIONS.DELETE_DRAFT_SUCCESS,
         payload: { draftId },
       });
-
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -466,10 +385,7 @@ export const DraftProvider = ({ children }) => {
    * Set current draft for editing
    */
   const setCurrentDraft = useCallback((draft) => {
-    dispatch({
-      type: DRAFT_ACTIONS.SET_CURRENT_DRAFT,
-      payload: { draft },
-    });
+    dispatch({ type: DRAFT_ACTIONS.SET_CURRENT_DRAFT, payload: { draft } });
   }, []);
 
   /**
@@ -483,10 +399,7 @@ export const DraftProvider = ({ children }) => {
    * Set filter
    */
   const setFilter = useCallback((filter) => {
-    dispatch({
-      type: DRAFT_ACTIONS.SET_FILTER,
-      payload: { filter },
-    });
+    dispatch({ type: DRAFT_ACTIONS.SET_FILTER, payload: { filter } });
   }, []);
 
   /**
@@ -500,11 +413,22 @@ export const DraftProvider = ({ children }) => {
    * Get filtered drafts
    */
   const getFilteredDrafts = useCallback(() => {
-    if (state.filter === "all") {
-      return state.drafts;
-    }
+    if (state.filter === "all") return state.drafts;
     return state.drafts.filter((d) => d.status === state.filter);
   }, [state.drafts, state.filter]);
+
+  // ── FIX: uploadMedia defined BEFORE the value object so it's not undefined ──
+  const uploadMedia = useCallback(async (uri, type, mimeType) => {
+    dispatch({ type: DRAFT_ACTIONS.UPLOAD_MEDIA_START });
+    try {
+      const result = await publishService.uploadMedia(uri, type, mimeType);
+      dispatch({ type: DRAFT_ACTIONS.UPLOAD_MEDIA_SUCCESS });
+      return { assetUrn: result.assetUrn };
+    } catch (error) {
+      dispatch({ type: DRAFT_ACTIONS.UPLOAD_MEDIA_FAIL });
+      throw error;
+    }
+  }, []);
 
   const value = {
     ...state,
@@ -522,18 +446,6 @@ export const DraftProvider = ({ children }) => {
     clearError,
     uploadMedia,
   };
-
-  const uploadMedia = useCallback(async (uri, type, mimeType) => {
-    dispatch({ type: DRAFT_ACTIONS.UPLOAD_MEDIA_START });
-    try {
-      const result = await publishService.uploadMedia(uri, type, mimeType);
-      dispatch({ type: DRAFT_ACTIONS.UPLOAD_MEDIA_SUCCESS });
-      return { assetUrn: result.assetUrn };
-    } catch (error) {
-      dispatch({ type: DRAFT_ACTIONS.UPLOAD_MEDIA_FAIL });
-      throw error;
-    }
-  }, []);
 
   return (
     <DraftContext.Provider value={value}>{children}</DraftContext.Provider>

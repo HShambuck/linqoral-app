@@ -1,5 +1,3 @@
-// src/screens/Record/VoiceCaptureScreen.js
-
 import React, { useState, useRef } from 'react';
 import {
   View,
@@ -15,6 +13,7 @@ import { useDrafts } from '../../context/DraftContext';
 import VoiceRecorder from '../../components/VoiceRecorder';
 import ToneSelector from '../../components/ToneSelector';
 import { SCREENS, TONES } from '../../utils/constants';
+import { useFocusEffect } from '@react-navigation/native';
 
 /**
  * VoiceCaptureScreen
@@ -35,6 +34,13 @@ const VoiceCaptureScreen = () => {
   const [selectedTone, setSelectedTone] = useState('Professional');
   const [phase, setPhase] = useState('idle'); // idle | recording | processing | done
   const voiceRecorderRef = useRef(null);
+  useFocusEffect(
+  React.useCallback(() => {
+    return () => {
+      setPhase('idle');
+    };
+  }, [])
+);
 
   const styles = createStyles(theme);
 
