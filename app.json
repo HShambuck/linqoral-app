@@ -4,7 +4,7 @@
     "slug": "linqoral-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/linquoral_logo.jpg",
+    "icon": "./assets/linquoral_logo.png",
     "scheme": "linqoral",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,12 +14,16 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/linquoral_logo.jpg",
-        "backgroundImage": "./assets/linquoral_logo.jpg",
-        "monochromeImage": "./assets/linquoral_logo.jpg"
+        "foregroundImage": "./assets/linquoral_logo.png",
+        "backgroundImage": "./assets/linquoral_logo.png",
+        "monochromeImage": "./assets/linquoral_logo.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.shambuck.linqoralapp"
     },
     "web": {
       "output": "static",
@@ -37,7 +41,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/linquoral_logo.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
@@ -52,6 +56,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a7343298-8087-4ac5-abfe-152c8aba7b9b"
+      }
     }
   }
 }
