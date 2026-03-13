@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as WebBrowser from 'expo-web-browser';
+import { useAuth } from '../context/AuthContext';
 import publishService from '../services/publishService';
 
 const useLinkedInAuth = () => {
+  const { refreshUser } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -34,7 +36,6 @@ const useLinkedInAuth = () => {
   const connect = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-
     try {
       const authUrl = await publishService.getLinkedInAuthUrl();
 
@@ -45,14 +46,14 @@ const useLinkedInAuth = () => {
         enableBarCollapsing: true,
       });
 
-      // Browser closed — refresh status in case OAuth completed
-      await refresh();
-      setIsLoading(false);
+      // Browser closed — refresh both LinkedIn status AND full user in AuthContext
+      await Promise.all([refresh(), refreshUser()]);
     } catch (err) {
       setError('Failed to open LinkedIn login. Please try again.');
+    } finally {
       setIsLoading(false);
     }
-  }, [refresh]);
+  }, [refresh, refreshUser]);
 
   const disconnect = useCallback(async () => {
     setIsLoading(true);
@@ -60,12 +61,13 @@ const useLinkedInAuth = () => {
     try {
       await publishService.disconnectLinkedIn();
       setStatus({ connected: false, devTokenActive: false, profile: null });
+      await refreshUser();
     } catch (err) {
       setError('Failed to disconnect LinkedIn. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshUser]);
 
   return {
     status,
