@@ -1,3 +1,5 @@
+// src/models/User.js
+
 /**
  * Generates initials from a name
  * @param {string} name
@@ -23,6 +25,7 @@ export const createDefaultUser = () => ({
   preferredTone: 'Professional',
   isDarkMode: true,
   linkedInConnected: false,
+  linkedIn: { connected: false },
   stats: {
     totalDrafts: 0,
     scheduledPosts: 0,
@@ -40,17 +43,20 @@ export const createDefaultUser = () => ({
 export const createUser = ({
   id = '',
   displayName = '',
+  initials = '',
   preferredTone = 'Professional',
   isDarkMode = true,
   linkedInConnected = false,
+  linkedIn = { connected: false },
   stats = null,
 }) => ({
   id,
   displayName,
-  initials: generateInitials(displayName),
+  initials: initials || generateInitials(displayName),
   preferredTone,
   isDarkMode,
   linkedInConnected,
+  linkedIn: linkedIn || { connected: false },
   stats: stats || {
     totalDrafts: 0,
     scheduledPosts: 0,
