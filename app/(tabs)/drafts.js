@@ -15,6 +15,7 @@ const FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'draft', label: 'Drafts' },
   { key: 'scheduled', label: 'Scheduled' },
+  { key: 'published', label: 'Published' },
 ];
 
 export default function DraftsScreen() {
@@ -61,6 +62,7 @@ export default function DraftsScreen() {
     all: drafts.length,
     draft: drafts.filter((d) => d.status === 'draft').length,
     scheduled: drafts.filter((d) => d.status === 'scheduled').length,
+    published: drafts.filter((d) => d.status === 'published').length,
   };
 
   const renderEmpty = () => (

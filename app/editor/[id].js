@@ -1,17 +1,9 @@
 // app/editor/[id].js
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  Modal,
-  ActivityIndicator,
-  ScrollView,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, Alert, Modal,
+  ActivityIndicator, ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -31,12 +23,8 @@ export default function EditorScreen() {
   const { id } = useLocalSearchParams();
   const { theme, isDarkMode } = useTheme();
   const {
-    currentDraft,
-    setCurrentDraft,
-    saveDraft,
-    updateDraftTone,
-    uploadMedia,
-    drafts,
+    currentDraft, setCurrentDraft, saveDraft,
+    updateDraftTone, uploadMedia, drafts,
   } = useDrafts();
   const insets = useSafeAreaInsets();
 
@@ -48,39 +36,43 @@ export default function EditorScreen() {
   const [hasChanges, setHasChanges] = useState(false);
   const [showVoiceEdit, setShowVoiceEdit] = useState(false);
   const [isApplyingVoiceEdit, setIsApplyingVoiceEdit] = useState(false);
+  const [draft, setDraft] = useState(null);
 
   const styles = createStyles(theme, isDarkMode, insets);
 
+  // Resolve draft from context or drafts list
   useEffect(() => {
+    let resolved = null;
     if (id) {
-      const draft = drafts.find((d) => d.id === id);
-      if (draft) {
-        setCurrentDraft(draft);
-        setEditText(getDisplayText(draft));
-        setSelectedTone(draft.tone);
-        setMediaAttachments(draft.mediaAttachments || []);
-      }
-    } else if (currentDraft) {
-      setEditText(getDisplayText(currentDraft));
-      setSelectedTone(currentDraft.tone);
-      setMediaAttachments(currentDraft.mediaAttachments || []);
+      resolved = drafts.find((d) => d.id === id) || currentDraft;
+    } else {
+      resolved = currentDraft;
     }
-  }, [id]);
+
+    if (resolved) {
+      setDraft(resolved);
+      setCurrentDraft(resolved);
+      const text = getDisplayText(resolved) || '';
+      setEditText(text);
+      setSelectedTone(resolved.tone || 'Professional');
+      setMediaAttachments(resolved.mediaAttachments || []);
+    }
+  }, [id, drafts]);
 
   useEffect(() => {
-    if (currentDraft) {
-      const originalText = getDisplayText(currentDraft);
+    if (draft) {
+      const originalText = getDisplayText(draft) || '';
       setHasChanges(
-        editText !== originalText || selectedTone !== currentDraft.tone,
+        editText !== originalText || selectedTone !== (draft.tone || 'Professional'),
       );
     }
-  }, [editText, selectedTone, currentDraft]);
+  }, [editText, selectedTone, draft]);
 
   const handleToneChange = async (newTone) => {
     setSelectedTone(newTone);
-    if (!currentDraft) return;
+    if (!draft) return;
     setIsChangingTone(true);
-    const result = await updateDraftTone(currentDraft.id, newTone);
+    const result = await updateDraftTone(draft.id, newTone);
     if (result.success) {
       setEditText(result.refinedText);
     } else {
@@ -108,9 +100,9 @@ export default function EditorScreen() {
   };
 
   const handleSaveDraft = async () => {
-    if (!currentDraft) return false;
+    if (!draft) return false;
     setIsSaving(true);
-    const result = await saveDraft(currentDraft.id, {
+    const result = await saveDraft(draft.id, {
       userEditedText: editText,
       tone: selectedTone,
       mediaAttachments,
@@ -125,17 +117,14 @@ export default function EditorScreen() {
   };
 
   const handlePublishOptions = async () => {
+    if (!draft) return;
     if (hasChanges) {
       const saved = await handleSaveDraft();
       if (!saved) return;
     }
-    router.push(`/publish/options?draftId=${currentDraft.id}`);
+    router.push(`/publish/options?draftId=${draft.id}`);
   };
 
-  /**
-   * Upload a single media file via DraftContext → publishService
-   * Returns { assetUrn } on success
-   */
   const handleUploadMedia = useCallback(
     async (uri, type, mimeType) => {
       if (!uploadMedia) throw new Error("Upload not available");
@@ -144,18 +133,13 @@ export default function EditorScreen() {
     [uploadMedia],
   );
 
-  /**
-   * Voice edit — transcribe instructions and apply to post text
-   */
   const handleVoiceEditComplete = useCallback(
     async ({ uri }) => {
       setIsApplyingVoiceEdit(true);
       try {
         const { transcript } = await aiService.transcribeAudio(uri);
         const { refinedText } = await aiService.applyVoiceEdit(
-          editText,
-          transcript,
-          selectedTone,
+          editText, transcript, selectedTone,
         );
         setEditText(refinedText);
         setHasChanges(true);
@@ -170,21 +154,18 @@ export default function EditorScreen() {
 
   const charCountStatus = getCharacterCountStatus(editText.length);
   const charCountColor =
-    charCountStatus === "error"
-      ? theme.danger
-      : charCountStatus === "warning"
-        ? theme.warning
-        : theme.textMuted;
+    charCountStatus === "error" ? theme.danger
+    : charCountStatus === "warning" ? theme.warning
+    : theme.textMuted;
 
-  if (!currentDraft && !id) {
+  // Loading state while draft resolves
+  if (!draft) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No draft selected</Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.emptyBtn}
-          >
+        <View style={styles.loadingState}>
+          <ActivityIndicator color={theme.primary} size="large" />
+          <Text style={styles.loadingStateText}>Loading draft...</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.emptyBtn}>
             <Text style={styles.emptyBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
@@ -202,11 +183,7 @@ export default function EditorScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
-              <TouchableOpacity
-                onPress={handleBack}
-                style={styles.backBtn}
-                activeOpacity={0.7}
-              >
+              <TouchableOpacity onPress={handleBack} style={styles.backBtn} activeOpacity={0.7}>
                 <View style={styles.backBtnInner}>
                   <Text style={styles.backBtnText}>‹</Text>
                 </View>
@@ -219,7 +196,6 @@ export default function EditorScreen() {
                 style={styles.voiceEditBtn}
                 activeOpacity={0.7}
               >
-                {/* Mic icon (geometric) */}
                 <View style={styles.headerMicWrap}>
                   <View style={styles.headerMicBody} />
                   <View style={styles.headerMicNeck} />
@@ -251,10 +227,7 @@ export default function EditorScreen() {
             <View style={styles.editorWrap}>
               <TextInput
                 value={editText}
-                onChangeText={(t) => {
-                  setEditText(t);
-                  setHasChanges(true);
-                }}
+                onChangeText={(t) => { setEditText(t); setHasChanges(true); }}
                 style={styles.textInput}
                 multiline
                 placeholder="Your post content..."
@@ -278,22 +251,16 @@ export default function EditorScreen() {
             {/* Media Picker */}
             <MediaPicker
               attachments={mediaAttachments}
-              onMediaChange={(updated) => {
-                setMediaAttachments(updated);
-                setHasChanges(true);
-              }}
+              onMediaChange={(updated) => { setMediaAttachments(updated); setHasChanges(true); }}
               onUploadMedia={handleUploadMedia}
               disabled={isSaving}
             />
 
             {/* Tone Selector */}
-            <ToneSelector
-              selectedTone={selectedTone}
-              onSelectTone={handleToneChange}
-            />
+            <ToneSelector selectedTone={selectedTone} onSelectTone={handleToneChange} />
           </ScrollView>
 
-          {/* Actions — pinned to bottom */}
+          {/* Actions */}
           <View style={[styles.actions, { paddingBottom: insets.bottom + 12 }]}>
             <TouchableOpacity
               onPress={handleSaveDraft}
@@ -301,12 +268,7 @@ export default function EditorScreen() {
               activeOpacity={0.7}
               disabled={isSaving || !hasChanges}
             >
-              <Text
-                style={[
-                  styles.saveBtnText,
-                  (!hasChanges || isSaving) && styles.saveBtnDisabled,
-                ]}
-              >
+              <Text style={[styles.saveBtnText, (!hasChanges || isSaving) && styles.saveBtnDisabled]}>
                 {isSaving ? "Saving..." : "Save"}
               </Text>
             </TouchableOpacity>
@@ -334,17 +296,13 @@ export default function EditorScreen() {
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Voice Edit</Text>
-              <TouchableOpacity
-                onPress={() => setShowVoiceEdit(false)}
-                style={styles.modalCloseBtn}
-              >
+              <TouchableOpacity onPress={() => setShowVoiceEdit(false)} style={styles.modalCloseBtn}>
                 <View style={styles.modalCloseLine1} />
                 <View style={styles.modalCloseLine2} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSub}>
-              {`Say your edit instructions, e.g. "make it shorter" or "add a call
-              to action"`}
+              Say your edit instructions, e.g. "make it shorter" or "add a call to action"
             </Text>
             {isApplyingVoiceEdit ? (
               <View style={styles.applyingWrap}>
@@ -373,71 +331,57 @@ const createStyles = (theme, isDarkMode, insets) =>
     safeArea: { flex: 1, backgroundColor: theme.bg },
     container: { flex: 1, paddingHorizontal: 22, paddingTop: 8 },
 
+    loadingState: {
+      flex: 1, justifyContent: 'center',
+      alignItems: 'center', gap: 16, padding: 20,
+    },
+    loadingStateText: { fontSize: 14, color: theme.textMuted },
+    emptyBtn: {
+      padding: 14, borderRadius: 12,
+      backgroundColor: theme.surface,
+      borderWidth: 1, borderColor: theme.border,
+      marginTop: 8,
+    },
+    emptyBtnText: { fontSize: 14, fontWeight: '600', color: theme.text },
+
     header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      marginBottom: 16,
+      flexDirection: "row", alignItems: "center",
+      justifyContent: "space-between", marginBottom: 16,
     },
     headerLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
     headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
     backBtn: {},
     backBtnInner: {
-      width: 36,
-      height: 36,
-      borderRadius: 12,
+      width: 36, height: 36, borderRadius: 12,
       backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-      justifyContent: "center",
-      alignItems: "center",
+      borderWidth: 1, borderColor: theme.border,
+      justifyContent: "center", alignItems: "center",
     },
     backBtnText: { fontSize: 22, color: theme.textSecondary, marginTop: -2 },
-    title: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: theme.text,
-      letterSpacing: -0.3,
-    },
+    title: { fontSize: 18, fontWeight: "700", color: theme.text, letterSpacing: -0.3 },
 
     voiceEditBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingVertical: 7,
-      paddingHorizontal: 10,
-      borderRadius: 20,
-      backgroundColor: theme.accentGlow,
-      borderWidth: 1,
-      borderColor: `${theme.accent}30`,
+      flexDirection: "row", alignItems: "center", gap: 5,
+      paddingVertical: 7, paddingHorizontal: 10,
+      borderRadius: 20, backgroundColor: theme.accentGlow,
+      borderWidth: 1, borderColor: `${theme.accent}30`,
     },
     headerMicWrap: { alignItems: "center" },
     headerMicBody: {
-      width: 8,
-      height: 11,
-      borderRadius: 4,
-      borderWidth: 1.5,
-      borderColor: theme.accent,
+      width: 8, height: 11, borderRadius: 4,
+      borderWidth: 1.5, borderColor: theme.accent,
     },
     headerMicNeck: {
-      width: 10,
-      height: 5,
-      borderTopLeftRadius: 5,
-      borderTopRightRadius: 5,
-      borderWidth: 1.5,
-      borderBottomWidth: 0,
-      borderColor: theme.accent,
-      marginTop: 1,
+      width: 10, height: 5,
+      borderTopLeftRadius: 5, borderTopRightRadius: 5,
+      borderWidth: 1.5, borderBottomWidth: 0,
+      borderColor: theme.accent, marginTop: 1,
     },
     voiceEditLabel: { fontSize: 11, fontWeight: "600", color: theme.accent },
-
     toneBadge: {
-      paddingVertical: 5,
-      paddingHorizontal: 10,
-      borderRadius: 20,
-      backgroundColor: theme.primaryGlow,
-      borderWidth: 1,
-      borderColor: `${theme.primary}30`,
+      paddingVertical: 5, paddingHorizontal: 10,
+      borderRadius: 20, backgroundColor: theme.primaryGlow,
+      borderWidth: 1, borderColor: `${theme.primary}30`,
     },
     toneBadgeText: { fontSize: 11, fontWeight: "600", color: theme.primary },
 
@@ -445,169 +389,83 @@ const createStyles = (theme, isDarkMode, insets) =>
     bodyContent: { paddingBottom: 8, gap: 12 },
 
     aiNotice: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      padding: 11,
-      borderRadius: 12,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      padding: 11, borderRadius: 12,
       backgroundColor: theme.accentGlow,
-      borderWidth: 1,
-      borderColor: `${theme.accent}25`,
+      borderWidth: 1, borderColor: `${theme.accent}25`,
     },
-    aiNoticeDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-      backgroundColor: theme.accent,
-    },
+    aiNoticeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent },
     aiNoticeText: { fontSize: 12, color: theme.textSecondary, flex: 1 },
 
     editorWrap: { minHeight: 180, marginBottom: 4 },
     textInput: {
-      minHeight: 160,
-      padding: 14,
-      borderRadius: 16,
+      minHeight: 160, padding: 14, borderRadius: 16,
       backgroundColor: theme.surface,
-      borderWidth: 1.5,
-      borderColor: theme.border,
-      color: theme.text,
-      fontSize: 14,
-      lineHeight: 22,
+      borderWidth: 1.5, borderColor: theme.border,
+      color: theme.text, fontSize: 14, lineHeight: 22,
     },
     loadingOverlay: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: `${theme.surface}CC`,
       borderRadius: 16,
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 8,
+      justifyContent: "center", alignItems: "center", gap: 8,
     },
     loadingText: { fontSize: 13, color: theme.textMuted },
     charCount: { alignItems: "flex-end", marginTop: 6, paddingRight: 4 },
     charCountText: { fontSize: 11 },
 
     actions: {
-      flexDirection: "row",
-      gap: 10,
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: theme.border,
+      flexDirection: "row", gap: 10,
+      paddingTop: 12, borderTopWidth: 1, borderTopColor: theme.border,
     },
     saveBtn: {
-      flex: 1,
-      padding: 14,
-      borderRadius: 14,
-      borderWidth: 1.5,
-      borderColor: theme.border,
-      alignItems: "center",
+      flex: 1, padding: 14, borderRadius: 14,
+      borderWidth: 1.5, borderColor: theme.border, alignItems: "center",
     },
-    saveBtnText: {
-      fontSize: 13,
-      fontWeight: "600",
-      color: theme.textSecondary,
-    },
+    saveBtnText: { fontSize: 13, fontWeight: "600", color: theme.textSecondary },
     saveBtnDisabled: { opacity: 0.4 },
     publishBtn: {
-      flex: 2.5,
-      flexDirection: "row",
-      padding: 14,
-      borderRadius: 14,
-      backgroundColor: theme.primary,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 4,
+      flex: 2.5, flexDirection: "row", padding: 14,
+      borderRadius: 14, backgroundColor: theme.primary,
+      alignItems: "center", justifyContent: "center", gap: 4,
       shadowColor: theme.primary,
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: isDarkMode ? 0.4 : 0.2,
-      shadowRadius: 12,
-      elevation: 6,
+      shadowRadius: 12, elevation: 6,
     },
     publishBtnText: { fontSize: 13, fontWeight: "700", color: "#fff" },
-    publishBtnArrow: {
-      fontSize: 18,
-      color: "rgba(255,255,255,0.8)",
-      fontWeight: "600",
-    },
+    publishBtnArrow: { fontSize: 18, color: "rgba(255,255,255,0.8)", fontWeight: "600" },
 
-    emptyState: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      padding: 20,
-    },
-    emptyText: { fontSize: 16, color: theme.textMuted, marginBottom: 20 },
-    emptyBtn: {
-      padding: 14,
-      borderRadius: 12,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    emptyBtnText: { fontSize: 14, fontWeight: "600", color: theme.text },
-
-    // Modal
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: theme.overlay,
-      justifyContent: "flex-end",
-    },
+    modalOverlay: { flex: 1, backgroundColor: theme.overlay, justifyContent: "flex-end" },
     modalSheet: {
       backgroundColor: theme.surface,
-      borderTopLeftRadius: 28,
-      borderTopRightRadius: 28,
-      padding: 24,
-      paddingBottom: insets.bottom + 24,
-      minHeight: 420,
+      borderTopLeftRadius: 28, borderTopRightRadius: 28,
+      padding: 24, paddingBottom: insets.bottom + 24, minHeight: 420,
     },
     modalHandle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: theme.border,
-      alignSelf: "center",
-      marginBottom: 20,
+      width: 36, height: 4, borderRadius: 2,
+      backgroundColor: theme.border, alignSelf: "center", marginBottom: 20,
     },
     modalHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 8,
+      flexDirection: "row", justifyContent: "space-between",
+      alignItems: "center", marginBottom: 8,
     },
     modalTitle: { fontSize: 18, fontWeight: "700", color: theme.text },
-    modalCloseBtn: {
-      width: 28,
-      height: 28,
-      justifyContent: "center",
-      alignItems: "center",
-    },
+    modalCloseBtn: { width: 28, height: 28, justifyContent: "center", alignItems: "center" },
     modalCloseLine1: {
-      position: "absolute",
-      width: 16,
-      height: 2,
-      backgroundColor: theme.textMuted,
-      borderRadius: 1,
+      position: "absolute", width: 16, height: 2,
+      backgroundColor: theme.textMuted, borderRadius: 1,
       transform: [{ rotate: "45deg" }],
     },
     modalCloseLine2: {
-      position: "absolute",
-      width: 16,
-      height: 2,
-      backgroundColor: theme.textMuted,
-      borderRadius: 1,
+      position: "absolute", width: 16, height: 2,
+      backgroundColor: theme.textMuted, borderRadius: 1,
       transform: [{ rotate: "-45deg" }],
     },
-    modalSub: {
-      fontSize: 13,
-      color: theme.textMuted,
-      lineHeight: 20,
-      marginBottom: 24,
-    },
+    modalSub: { fontSize: 13, color: theme.textMuted, lineHeight: 20, marginBottom: 24 },
     applyingWrap: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 16,
-      minHeight: 200,
+      flex: 1, justifyContent: "center",
+      alignItems: "center", gap: 16, minHeight: 200,
     },
     applyingText: { fontSize: 14, color: theme.textMuted },
   });
