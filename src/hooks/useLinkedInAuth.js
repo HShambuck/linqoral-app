@@ -1,12 +1,11 @@
 // src/hooks/useLinkedInAuth.js
-import { useState, useCallback } from 'react';
-import * as WebBrowser from 'expo-web-browser';
-import { useAuth } from '../context/AuthContext';
-import authService from '../services/authService';
-import api from '../services/api';
+import { useState, useCallback } from "react";
+import * as WebBrowser from "expo-web-browser";
+import { useAuth } from "../context/AuthContext";
+import api from "../services/api";
 
 export const useLinkedInAuth = () => {
-  const { refresh, refreshUser, dispatch } = useAuth();
+  const { refreshUser } = useAuth();
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -15,59 +14,27 @@ export const useLinkedInAuth = () => {
     setError(null);
 
     try {
-      // Get the auth URL from backend
-      const { data } = await api.get('/publish/linkedin/auth-url');
-      const authUrl = data.authUrl;
+      const response = await api.get("/publish/linkedin/auth-url");
+      const authUrl = response.authUrl;
+      if (!authUrl) throw new Error("Could not get LinkedIn auth URL");
 
-      // Open browser — blocks until user completes or dismisses
-      const result = await WebBrowser.openAuthSessionAsync(
-        authUrl,
-        'linqoral://linkedin-connected'
-      );
+      await WebBrowser.openBrowserAsync(authUrl, {
+        showTitle: false,
+        enableBarCollapsing: true,
+        showInRecents: false,
+      });
 
-      if (result.type === 'success' && result.url) {
-        const url = new URL(result.url);
-        const success = url.searchParams.get('success') === 'true';
-        const recovered = url.searchParams.get('recovered') === 'true';
-        const recoveryToken = url.searchParams.get('token');
-
-        if (success && recovered && recoveryToken) {
-          // Account recovery — swap to the recovered account's token
-          await authService.storeToken(recoveryToken);
-          const session = await authService.restoreSession();
-
-          if (session?.user) {
-            dispatch({ type: 'UPDATE_USER', payload: { user: session.user } });
-          }
-
-          return { success: true, recovered: true };
-        }
-
-        if (success) {
-          // Normal LinkedIn connect — just refresh user data
-          await refreshUser();
-          return { success: true, recovered: false };
-        }
-
-        const errorMsg = url.searchParams.get('error') || 'LinkedIn connection failed';
-        setError(errorMsg);
-        return { success: false, error: errorMsg };
-      }
-
-      // User cancelled
-      return { success: false, cancelled: true };
+      // linkedin-connected.js screen handles refreshUser after OAuth
+      setIsConnecting(false);
     } catch (err) {
-      const message = err.message || 'Failed to connect LinkedIn';
-      setError(message);
-      return { success: false, error: message };
-    } finally {
+      setError(err.message || "Failed to connect LinkedIn");
       setIsConnecting(false);
     }
-  }, [refresh, refreshUser, dispatch]);
+  }, []);
 
   const disconnect = useCallback(async () => {
     try {
-      await api.post('/publish/linkedin/disconnect');
+      await api.post("/publish/linkedin/disconnect");
       await refreshUser();
       return { success: true };
     } catch (err) {

@@ -1,7 +1,7 @@
 // src/context/AuthContext.js
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import authService from '../services/authService';
+import React, { createContext, useContext, useReducer, useEffect } from "react";
+import authService from "../services/authService";
 
 const initialState = {
   user: null,
@@ -12,16 +12,16 @@ const initialState = {
 };
 
 const AUTH_ACTIONS = {
-  RESTORE_SESSION_START: 'RESTORE_SESSION_START',
-  RESTORE_SESSION_SUCCESS: 'RESTORE_SESSION_SUCCESS',
-  RESTORE_SESSION_FAIL: 'RESTORE_SESSION_FAIL',
-  LOGIN_START: 'LOGIN_START',
-  LOGIN_SUCCESS: 'LOGIN_SUCCESS',
-  LOGIN_FAIL: 'LOGIN_FAIL',
-  LOGOUT: 'LOGOUT',
-  UPDATE_USER: 'UPDATE_USER',
-  SET_ONBOARDING_COMPLETE: 'SET_ONBOARDING_COMPLETE',
-  CLEAR_ERROR: 'CLEAR_ERROR',
+  RESTORE_SESSION_START: "RESTORE_SESSION_START",
+  RESTORE_SESSION_SUCCESS: "RESTORE_SESSION_SUCCESS",
+  RESTORE_SESSION_FAIL: "RESTORE_SESSION_FAIL",
+  LOGIN_START: "LOGIN_START",
+  LOGIN_SUCCESS: "LOGIN_SUCCESS",
+  LOGIN_FAIL: "LOGIN_FAIL",
+  LOGOUT: "LOGOUT",
+  UPDATE_USER: "UPDATE_USER",
+  SET_ONBOARDING_COMPLETE: "SET_ONBOARDING_COMPLETE",
+  CLEAR_ERROR: "CLEAR_ERROR",
 };
 
 const authReducer = (state, action) => {
@@ -37,12 +37,19 @@ const authReducer = (state, action) => {
         user: action.payload.user,
         isLoading: false,
         isAuthenticated: true,
-        isOnboardingComplete: action.payload.isOnboardingComplete ?? state.isOnboardingComplete,
+        isOnboardingComplete:
+          action.payload.isOnboardingComplete ?? state.isOnboardingComplete,
         error: null,
       };
 
     case AUTH_ACTIONS.RESTORE_SESSION_FAIL:
-      return { ...state, user: null, isLoading: false, isAuthenticated: false, error: null };
+      return {
+        ...state,
+        user: null,
+        isLoading: false,
+        isAuthenticated: false,
+        error: null,
+      };
 
     case AUTH_ACTIONS.LOGIN_FAIL:
       return {
@@ -90,7 +97,7 @@ export const AuthProvider = ({ children }) => {
           dispatch({ type: AUTH_ACTIONS.RESTORE_SESSION_FAIL });
         }
       } catch (error) {
-        console.warn('Session restore failed:', error);
+        console.warn("Session restore failed:", error);
         dispatch({ type: AUTH_ACTIONS.RESTORE_SESSION_FAIL });
       }
     };
@@ -100,14 +107,20 @@ export const AuthProvider = ({ children }) => {
   const register = async ({ displayName, preferredTone }) => {
     dispatch({ type: AUTH_ACTIONS.LOGIN_START });
     try {
-      const { user } = await authService.register({ displayName, preferredTone });
+      const { user } = await authService.register({
+        displayName,
+        preferredTone,
+      });
       dispatch({
         type: AUTH_ACTIONS.LOGIN_SUCCESS,
         payload: { user, isOnboardingComplete: false },
       });
       return { success: true };
     } catch (error) {
-      dispatch({ type: AUTH_ACTIONS.LOGIN_FAIL, payload: { error: error.message } });
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_FAIL,
+        payload: { error: error.message },
+      });
       return { success: false, error: error.message };
     }
   };
@@ -123,20 +136,27 @@ export const AuthProvider = ({ children }) => {
       });
       return { success: true };
     } catch (error) {
-      dispatch({ type: AUTH_ACTIONS.LOGIN_FAIL, payload: { error: error.message } });
+      dispatch({
+        type: AUTH_ACTIONS.LOGIN_FAIL,
+        payload: { error: error.message },
+      });
       return { success: false, error: error.message };
     }
   };
 
   const logout = async () => {
-    await authService.logout();
+    // Clear local state immediately — never hang waiting for API
     dispatch({ type: AUTH_ACTIONS.LOGOUT });
+    authService.logout().catch(() => {});
   };
 
   const updateProfile = async (updates) => {
     try {
       const updatedUser = await authService.updateProfile(updates);
-      dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: { user: updatedUser } });
+      dispatch({
+        type: AUTH_ACTIONS.UPDATE_USER,
+        payload: { user: updatedUser },
+      });
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -152,9 +172,6 @@ export const AuthProvider = ({ children }) => {
     dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
   };
 
-  /**
-   * Refresh user from server — call after LinkedIn OAuth or any external change
-   */
   const refreshUser = async () => {
     try {
       const user = await authService.restoreSession();
@@ -162,7 +179,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.UPDATE_USER, payload: { user } });
       }
     } catch (error) {
-      console.warn('Failed to refresh user:', error);
+      console.warn("Failed to refresh user:", error);
     }
   };
 
@@ -178,17 +195,13 @@ export const AuthProvider = ({ children }) => {
     dispatch,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
