@@ -1,11 +1,12 @@
 // app/index.js
 
-import { Redirect } from 'expo-router';
+import { Redirect, usePathname } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useAuth } from '../src/context/AuthContext';
 
 export default function Index() {
   const { isLoading, isAuthenticated } = useAuth();
+  const pathname = usePathname();
 
   // Show loading while checking auth
   if (isLoading) {
@@ -19,6 +20,9 @@ export default function Index() {
       </View>
     );
   }
+
+  // Don't redirect if we're already on a deep link screen
+  if (pathname !== '/') return null;
 
   // Redirect based on auth state
   if (isAuthenticated) {
