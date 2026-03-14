@@ -10,6 +10,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { AuthProvider } from "../src/context/AuthContext";
 import { UserProvider } from "../src/context/UserContext";
 import { DraftProvider } from "../src/context/DraftContext";
+import { SubscriptionProvider } from "../src/context/SubscriptionContext";
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -29,42 +30,44 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <UserProvider>
-            <DraftProvider>
-              <StatusBar style="light" />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="linkedin-connected"
-                  options={{
-                    headerShown: false,
-                    animation: "fade",
-                  }}
-                />
-                <Stack.Screen
-                  name="editor/[id]"
-                  options={{
-                    presentation: "card",
-                    animation: "slide_from_right",
-                  }}
-                />
-                <Stack.Screen
-                  name="publish/options"
-                  options={{
-                    presentation: "card",
-                    animation: "slide_from_right",
-                  }}
-                />
-                <Stack.Screen
-                  name="publish/schedule"
-                  options={{
-                    presentation: "card",
-                    animation: "slide_from_right",
-                  }}
-                />
-              </Stack>
-            </DraftProvider>
+            <SubscriptionProvider>
+              <DraftProvider>
+                <StatusBar style="light" />
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="index" />
+                  <Stack.Screen name="(auth)" />
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen
+                    name="linkedin-connected"
+                    options={{
+                      headerShown: false,
+                      animation: "fade",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="editor/[id]"
+                    options={{
+                      presentation: "card",
+                      animation: "slide_from_right",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="publish/options"
+                    options={{
+                      presentation: "card",
+                      animation: "slide_from_right",
+                    }}
+                  />
+                  <Stack.Screen
+                    name="publish/schedule"
+                    options={{
+                      presentation: "card",
+                      animation: "slide_from_right",
+                    }}
+                  />
+                </Stack>
+              </DraftProvider>
+            </SubscriptionProvider>
           </UserProvider>
         </AuthProvider>
       </SafeAreaProvider>
