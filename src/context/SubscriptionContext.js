@@ -47,24 +47,37 @@ export const SubscriptionProvider = ({ children }) => {
     fetchStatus();
   }, [isAuthenticated]);
 
-  const upgrade = async () => {
+  /**
+   * Initialize Paystack payment — returns authorizationUrl and reference
+   */
+  const initializePayment = async (currency = "GHS") => {
+    const response = await api.post("/subscription/initialize", { currency });
+    return {
+      authorizationUrl: response.authorizationUrl,
+      reference: response.reference,
+    };
+  };
+
+  /**
+   * Verify payment after browser closes
+   */
+  const verifyPayment = async (reference) => {
     try {
-      const response = await api.post("/subscription/upgrade", {});
-      setSubscription(response.subscription);
-      await fetchStatus();
-      return { success: true };
+      const response = await api.post("/subscription/verify", { reference });
+      if (response.success) {
+        setSubscription(response.subscription);
+      }
+      return { success: response.success };
     } catch (error) {
       return { success: false, error: error.message };
     }
   };
 
-  // Check if user can use AI refinement
   const canUseAIRefinement = () => {
     if (subscription.isPro) return true;
-    return usage.aiRefinementsUsed < usage.aiRefinementsLimit;
+    return usage.aiRefinementsUsed < (usage.aiRefinementsLimit || 3);
   };
 
-  // Check if user can record given duration in seconds
   const canRecord = (durationSeconds) => {
     if (subscription.isPro) return true;
     return durationSeconds <= (usage.recordingSecondsLimit || 120);
@@ -74,7 +87,10 @@ export const SubscriptionProvider = ({ children }) => {
 
   const aiRefinementsRemaining = () => {
     if (subscription.isPro) return Infinity;
-    return Math.max(0, usage.aiRefinementsLimit - usage.aiRefinementsUsed);
+    return Math.max(
+      0,
+      (usage.aiRefinementsLimit || 3) - usage.aiRefinementsUsed,
+    );
   };
 
   const value = {
@@ -83,7 +99,8 @@ export const SubscriptionProvider = ({ children }) => {
     isLoading,
     isPro: subscription.isPro,
     fetchStatus,
-    upgrade,
+    initializePayment,
+    verifyPayment,
     canUseAIRefinement,
     canRecord,
     canSchedule,
