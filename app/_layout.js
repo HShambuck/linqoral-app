@@ -30,8 +30,8 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <UserProvider>
-            <SubscriptionProvider>
-              <DraftProvider>
+            <DraftProvider>
+              <SubscriptionProvider>
                 <StatusBar style="light" />
                 <Stack screenOptions={{ headerShown: false }}>
                   <Stack.Screen name="index" />
@@ -73,8 +73,8 @@ export default function RootLayout() {
                     }}
                   />
                 </Stack>
-              </DraftProvider>
-            </SubscriptionProvider>
+              </SubscriptionProvider>
+            </DraftProvider>
           </UserProvider>
         </AuthProvider>
       </SafeAreaProvider>

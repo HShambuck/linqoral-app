@@ -34,13 +34,10 @@ export default function RecordScreen() {
   useFocusEffect(
     useCallback(() => {
       return () => {
-        // Don't reset if processing — draft would be lost
-        if (phase !== SCREEN_PHASES.PROCESSING) {
-          setPhase(SCREEN_PHASES.IDLE);
-          setRecorderKey((k) => k + 1);
-        }
+        setPhase(SCREEN_PHASES.IDLE);
+        setRecorderKey((k) => k + 1);
       };
-    }, [phase]),
+    }, []), // ← empty deps, runs ONCE
   );
 
   const handleBack = () => {

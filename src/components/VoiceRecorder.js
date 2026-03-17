@@ -1,4 +1,4 @@
-// src/components/VoiceRecorder.js
+// src/components/VoiceRecorder.js - buggy
 import { Audio } from "expo-av";
 import {
   forwardRef,
@@ -65,6 +65,7 @@ const VoiceRecorder = forwardRef(
         setPhase(PHASES.ERROR);
       },
       reset: () => {
+        // cleanupRecording();
         setPhase(PHASES.IDLE);
         setDuration(0);
         setErrorMessage(null);
@@ -73,10 +74,6 @@ const VoiceRecorder = forwardRef(
 
     useEffect(() => {
       Audio.requestPermissionsAsync();
-      Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
       return () => {
         if (durationIntervalRef.current)
           clearInterval(durationIntervalRef.current);
@@ -160,39 +157,35 @@ const VoiceRecorder = forwardRef(
     const startRecording = async () => {
       try {
         setErrorMessage(null);
-        const { status } = await Audio.requestPermissionsAsync();
-        if (status !== "granted")
+        let permission = await Audio.getPermissionsAsync();
+
+        if (!permission.granted) {
+          permission = await Audio.requestPermissionsAsync();
+        }
+
+        if (!permission.granted) {
+          alert("Mic permission denied");
           throw new Error("Microphone permission required");
-        const recording = new Audio.Recording();
-        await recording.prepareToRecordAsync({
-          android: {
-            extension: ".m4a",
-            outputFormat: Audio.AndroidOutputFormat.MPEG_4,
-            audioEncoder: Audio.AndroidAudioEncoder.AAC,
-            sampleRate: RECORDING_CONFIG.SAMPLE_RATE,
-            numberOfChannels: RECORDING_CONFIG.CHANNELS,
-            bitRate: RECORDING_CONFIG.BIT_RATE,
-          },
-          ios: {
-            extension: ".m4a",
-            audioQuality: Audio.IOSAudioQuality.HIGH,
-            sampleRate: RECORDING_CONFIG.SAMPLE_RATE,
-            numberOfChannels: RECORDING_CONFIG.CHANNELS,
-            bitRate: RECORDING_CONFIG.BIT_RATE,
-            linearPCMBitDepth: 16,
-            linearPCMIsBigEndian: false,
-            linearPCMIsFloat: false,
-          },
-          web: {
-            mimeType: "audio/webm",
-            bitsPerSecond: RECORDING_CONFIG.BIT_RATE,
-          },
+        }
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
         });
+
+        const recording = new Audio.Recording();
+
+        await recording.prepareToRecordAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY,
+        );
+
         await recording.startAsync();
+
+        console.log("RECORDING OBJECT:", recording);
+
         recordingRef.current = recording;
         setPhase(PHASES.RECORDING);
         setDuration(0);
-        onRecordingStart?.(); // ← notify parent recording has started
+        onRecordingStart?.();
         durationIntervalRef.current = setInterval(() => {
           setDuration((prev) => {
             const next = prev + 1000;
@@ -201,6 +194,7 @@ const VoiceRecorder = forwardRef(
           });
         }, 1000);
       } catch (error) {
+        console.log("START RECORDING ERROR:", error); // 👈 ADD THIS
         setErrorMessage(error.message || "Failed to start recording");
         setPhase(PHASES.ERROR);
         onError?.(error);
@@ -208,6 +202,7 @@ const VoiceRecorder = forwardRef(
     };
 
     const stopRecording = async () => {
+      console.log("STOP RECORDING CALLED"); // 👈 MUST appear
       try {
         if (durationIntervalRef.current) {
           clearInterval(durationIntervalRef.current);
@@ -222,12 +217,19 @@ const VoiceRecorder = forwardRef(
           recordingRef.current = null;
           return;
         }
-        await recordingRef.current.stopAndUnloadAsync();
-        const uri = recordingRef.current.getURI();
+        const recording = recordingRef.current;
+
+        await recording.stopAndUnloadAsync();
+
+        const uri = recording.getURI();
+
+        console.log("FINAL URI:", uri); // 👈 ADD THIS
+
         recordingRef.current = null;
         setPhase(PHASES.PROCESSING);
         onProcessingStart?.();
         onRecordingComplete?.({ uri, durationMs: duration });
+        console.log("SENDING RECORDING:", { uri, duration });
       } catch (error) {
         setErrorMessage(error.message || "Failed to stop recording");
         setPhase(PHASES.ERROR);
@@ -250,9 +252,15 @@ const VoiceRecorder = forwardRef(
     };
 
     const handlePress = () => {
-      if (phase === PHASES.IDLE || phase === PHASES.ERROR) startRecording();
-      else if (phase === PHASES.RECORDING) stopRecording();
-      else if (phase === PHASES.DONE) {
+      console.log("BUTTON PRESSED, PHASE:", phase);
+
+      if (phase === PHASES.IDLE || phase === PHASES.ERROR) {
+        console.log("→ STARTING RECORDING");
+        startRecording();
+      } else if (phase === PHASES.RECORDING) {
+        console.log("→ STOPPING RECORDING");
+        stopRecording();
+      } else if (phase === PHASES.DONE) {
         setPhase(PHASES.IDLE);
         setDuration(0);
       }
