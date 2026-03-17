@@ -46,6 +46,7 @@ const VoiceRecorder = forwardRef(
     const [errorMessage, setErrorMessage] = useState(null);
 
     const recordingRef = useRef(null);
+    const lastRecordingUriRef = useRef(null);
     const durationIntervalRef = useRef(null);
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const pulseOpacity = useRef(new Animated.Value(0.4)).current;
@@ -65,7 +66,7 @@ const VoiceRecorder = forwardRef(
         setPhase(PHASES.ERROR);
       },
       reset: () => {
-        // cleanupRecording();
+        lastRecordingUriRef.current = null;
         setPhase(PHASES.IDLE);
         setDuration(0);
         setErrorMessage(null);
@@ -222,6 +223,7 @@ const VoiceRecorder = forwardRef(
         await recording.stopAndUnloadAsync();
 
         const uri = recording.getURI();
+        lastRecordingUriRef.current = uri;
 
         console.log("FINAL URI:", uri); // 👈 ADD THIS
 
@@ -254,7 +256,7 @@ const VoiceRecorder = forwardRef(
     const handlePress = () => {
       console.log("BUTTON PRESSED, PHASE:", phase);
 
-      if (phase === PHASES.IDLE || phase === PHASES.ERROR) {
+      if (phase === PHASES.IDLE) {
         console.log("→ STARTING RECORDING");
         startRecording();
       } else if (phase === PHASES.RECORDING) {
@@ -395,8 +397,35 @@ const VoiceRecorder = forwardRef(
           </View>
           <Text style={styles.errorTitle}>Something went wrong</Text>
           <Text style={styles.errorMsg}>{errorMessage}</Text>
-          <TouchableOpacity onPress={handlePress} style={styles.retryBtn}>
-            <Text style={styles.retryText}>Try Again</Text>
+
+          {/* Retry with same audio if we have it */}
+          {lastRecordingUriRef.current && (
+            <TouchableOpacity
+              onPress={() => {
+                setPhase(PHASES.PROCESSING);
+                onProcessingStart?.();
+                onRecordingComplete?.({
+                  uri: lastRecordingUriRef.current,
+                  durationMs: duration,
+                });
+              }}
+              style={styles.retryBtn}
+            >
+              <Text style={styles.retryText}>Retry Processing</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Record fresh */}
+          <TouchableOpacity
+            onPress={() => {
+              lastRecordingUriRef.current = null;
+              setPhase(PHASES.IDLE);
+              setDuration(0);
+              setErrorMessage(null);
+            }}
+            style={styles.recordAgainButton}
+          >
+            <Text style={styles.recordAgainText}>Record Again</Text>
           </TouchableOpacity>
         </View>
       </View>
