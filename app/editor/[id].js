@@ -117,13 +117,21 @@ export default function EditorScreen() {
   };
 
   const handlePublishOptions = async () => {
-    if (!draft) return;
-    if (hasChanges) {
-      const saved = await handleSaveDraft();
-      if (!saved) return;
-    }
-    router.push(`/publish/options?draftId=${draft.id}`);
-  };
+  if (!draft) return;
+  
+  // Block publish if any media is still uploading
+  const hasUnuploaded = mediaAttachments.some((a) => !a.assetUrn);
+  if (hasUnuploaded) {
+    Alert.alert("Please wait", "Media is still uploading. Please wait before publishing.");
+    return;
+  }
+  
+  // Always save before publishing to ensure mediaAttachments are persisted
+  const saved = await handleSaveDraft();
+  if (!saved) return;
+  
+  router.push(`/publish/options?draftId=${draft.id}`);
+};
 
   const handleUploadMedia = useCallback(
     async (uri, type, mimeType) => {

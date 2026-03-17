@@ -29,7 +29,7 @@ const MediaPicker = ({ attachments = [], onMediaChange, onUploadMedia, disabled 
   const styles = createStyles(theme, isDarkMode);
   const [uploadingIndex, setUploadingIndex] = useState(null);
 
-  const hasVideo = attachments.some((a) => a.type === 'video');
+  const hasVideo = attachments.some((a) => a.mediaType === 'video');
   const canAddImage = !hasVideo && attachments.length < MAX_IMAGES;
   const canAddVideo = attachments.length === 0;
   const canAdd = (canAddImage || canAddVideo) && !disabled;
@@ -57,7 +57,7 @@ const MediaPicker = ({ attachments = [], onMediaChange, onUploadMedia, disabled 
 
     const newAttachments = result.assets.map((asset) => ({
       uri: asset.uri,
-      type: 'image',
+      mediaType: 'image',
       mimeType: asset.mimeType || 'image/jpeg',
       fileName: asset.fileName || `image_${Date.now()}.jpg`,
       assetUrn: null,
@@ -85,7 +85,7 @@ const MediaPicker = ({ attachments = [], onMediaChange, onUploadMedia, disabled 
     const asset = result.assets[0];
     const newAttachment = {
       uri: asset.uri,
-      type: 'video',
+      mediaType: 'video',
       mimeType: asset.mimeType || 'video/mp4',
       fileName: asset.fileName || `video_${Date.now()}.mp4`,
       assetUrn: null,
@@ -106,7 +106,7 @@ const MediaPicker = ({ attachments = [], onMediaChange, onUploadMedia, disabled 
 
       setUploadingIndex(i);
       try {
-        const { assetUrn } = await onUploadMedia(attachment.uri, attachment.type, attachment.mimeType);
+        const { assetUrn } = await onUploadMedia(attachment.uri, attachment.mediaType, attachment.mimeType);
         allAttachments = allAttachments.map((a, idx) =>
           idx === i ? { ...a, assetUrn, uploaded: true } : a
         );
@@ -165,7 +165,7 @@ const MediaPicker = ({ attachments = [], onMediaChange, onUploadMedia, disabled 
         {/* Thumbnails */}
         {attachments.map((attachment, index) => (
           <View key={index} style={styles.thumb}>
-            {attachment.type === 'image' ? (
+            {attachment.mediaType === 'image' ? (
               <Image source={{ uri: attachment.uri }} style={styles.thumbImage} />
             ) : (
               <View style={styles.thumbVideo}>
